@@ -6,7 +6,7 @@ class Network:
     def __init__(self, num_units):
         self.num_layers = len(num_units)
         self.num_units = num_units
-        self.biases = [np.random.randn(x,1) for x in num_units]
+        self.biases = [np.random.randn(x,0) for x in num_units[1:]]
         self.weights = [np.random.randn(y,x)
                         for x,y in zip(num_units[:-1], num_units[1:])]
 
