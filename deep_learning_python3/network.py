@@ -44,7 +44,7 @@ class Network:
             zs.append(z)
             activations.append(sigmoid(z))
         # backward sweep
-        delta = self.cost_derivative(activations[-1],y) * sigmod_prime(zs[-1])
+        delta = self.cost_derivative(activations[-1],y) * sigmoid_prime(zs[-1])
         for l in range(0,self.num_layers-1)[::-1]:
             grad_b[l] = delta
             grad_w[l] = np.dot(delta,activations[l].transpose())
@@ -52,10 +52,31 @@ class Network:
             delta = np.dot(self.weights[l].transpose(),delta)*sigmoid_prime(zs[l-1])
         return grad_b, grad_w
 
+    def numerical_gradient(self, x, y, dparam = 1e-4):
+        cost = self.cost(x,y)
+        grad_w = []
+        grad_b = []
+        for w in self.weights:
+            grad_w.append(np.zeros(w.shape))
+            for i,j in np.ndindex(w.shape):
+                w[i,j] += dparam
+                dcost = self.cost(x,y)-cost
+                w[i,j] -= dparam
+                grad_w[-1][i,j] = dcost/dparam
+        for b in self.biases:
+            grad_b.append(np.zeros(b.shape))
+            for i in range(len(b)):
+                b[i] += dparam
+                dcost = self.cost(x,y)-cost
+                b[i] -= dparam
+                grad_b[-1][i] = dcost/dparam
+        return grad_b, grad_w
+
     def evaluate(self, test_data):
         pass
 
-    def cost(self, output_activation, y):
+    def cost(self, x, y):
+        output_activation = self.feedforward(x)
         return 0.5*np.sum((output_activation-y)**2)
 
     def cost_derivative(self, output_activation, y):
@@ -71,35 +92,18 @@ def sigmoid_prime(z):
     return sigmoid(z)*(1-sigmoid(z))
 
 
-def gradient_check(num_units, tiny_grad = 1e-6, epsilon = 1e-4, relative_tolerance = 1e-3):
+def gradient_check(num_units, relative_tolerance = 1e-3):
     x = np.ones([num_units[0],1])*0.5
     y = np.random.rand(num_units[-1],1)
 
-    net1 = Network(num_units)
-    out1 = net1.feedforward(x)
-    backprop_grad_b, backprop_grad_w = net1.backprop(x,y)
+    net = Network(num_units)
+    numerical_grad_b, numerical_grad_w = net.numerical_gradient(x,y)
+    backprop_grad_b, backprop_grad_w = net.backprop(x,y)
 
-    net2 = copy.deepcopy(net1)
-
-    for nl in range(net2.num_layers-2):
-        for i in range(num_units[nl + 1]):
-            # weights
-            for j in range(num_units[nl]):
-                net2.weights[nl][i,j] += epsilon
-                out2 = net2.feedforward(x)
-                grad = (net2.cost(out2, y) - net1.cost(out1, y)) / epsilon
-                if np.abs(grad-backprop_grad_w[nl][i,j])/(np.abs(grad)+tiny_grad) > relative_tolerance:
-                    return False
-                else:
-                    net2.weights[nl][i,j] -= epsilon
-            # biases
-            net2.biases[nl][i] += epsilon
-            out2 = net2.feedforward(x)
-            grad = (net2.cost(out2, y) - net1.cost(out1, y)) / epsilon
-            if np.abs(grad-backprop_grad_b[nl][i])/(np.abs(grad)+tiny_grad) > relative_tolerance:
-                return False
-            else:
-                net2.biases[nl][i] -= epsilon
+    for numerical, backprop in zip(numerical_grad_w,backprop_grad_w):
+        diff = numerical-backprop
+        if np.linalg.norm(diff) > relative_tolerance*np.linalg.norm(backprop):
+            return False
 
     return True
 
