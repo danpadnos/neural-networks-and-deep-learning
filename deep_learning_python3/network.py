@@ -21,6 +21,7 @@ class Network:
         if test_data:
             num_test = len(test_data)
         num_training = len(training_data)
+        print (f'num_training={num_training}')
         for ne in range(num_epochs):
             random.shuffle(training_data)
             for i in range(0, num_training, batch_size):
@@ -31,7 +32,16 @@ class Network:
                 print(f'Epoch {ne} complete')
 
     def update_batch(self, batch, learning_rate):
-        pass
+        batch_size = len(batch)
+        grad_b = [np.zeros(b.shape) for b in self.biases]
+        grad_w = [np.zeros(w.shape) for w in self.weights]
+        for x, y in batch:
+            gb, gw = self.backprop(x,y)
+            grad_b = [xx + yy/batch_size for xx, yy in zip(grad_b, gb)]
+            grad_w = [xx + yy/batch_size for xx, yy in zip(grad_w, gw)]
+        for b, w, gb, gw in zip(self.biases, self.weights, grad_b, grad_w):
+            b -= gb*learning_rate
+            w -= gw*learning_rate
 
     def backprop(self, x, y):
         grad_w = [np.zeros(w.shape) for w in self.weights]
@@ -73,7 +83,8 @@ class Network:
         return grad_b, grad_w
 
     def evaluate(self, test_data):
-        pass
+        test_results = [(np.argmax(self.feedforward(x)), y) for (x, y) in test_data]
+        return sum(int(x == y) for (x, y) in test_results)
 
     def cost(self, x, y):
         output_activation = self.feedforward(x)
@@ -92,7 +103,7 @@ def sigmoid_prime(z):
     return sigmoid(z)*(1-sigmoid(z))
 
 
-def gradient_check(num_units, relative_tolerance = 1e-3):
+def gradient_check(num_units, relative_tolerance = 1e-4):
     x = np.ones([num_units[0],1])*0.5
     y = np.random.rand(num_units[-1],1)
 
